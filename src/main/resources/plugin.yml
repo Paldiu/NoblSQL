@@ -1,0 +1,8 @@
+name: NoblSQL
+version: ${version}
+main: app.simplexdev.noblsql.NoblSQL
+api-version: '1.21'
+description: Reactive multi-driver SQL and Redis integration library for Paper plugins.
+authors:
+  - Simplex Development
+  - Paldiu

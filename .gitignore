@@ -1,0 +1,6 @@
+.gradle/
+.jdks/
+.vscode/
+build/
+gradle/wrapper/
+/src/test/

@@ -1,0 +1,25 @@
+[versions]
+junit-jupiter = "5.12.1"
+paper-api = "26.1.2.build.63-stable"
+sqlite-jdbc = "3.47.1.0"
+hikari-cp = "6.2.1"
+reactor = "3.6.10"
+pgsql-jdbc = "42.7.4"
+mysql-connector = "9.1.0"
+mariadb-jdbc = "3.5.2"
+jedis = "5.2.0"
+commons-lang3 = "3.17.0"
+h2 = "2.3.232"
+
+[libraries]
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit-jupiter" }
+paper-api = { module = "io.papermc.paper:paper-api", version.ref = "paper-api" }
+sqlite-jdbc = { module = "org.xerial:sqlite-jdbc", version.ref = "sqlite-jdbc" }
+hikari-cp = { module = "com.zaxxer:HikariCP", version.ref = "hikari-cp" }
+reactor-core = { module = "io.projectreactor:reactor-core", version.ref = "reactor" }
+pgsql-jdbc = { module = "org.postgresql:postgresql", version.ref = "pgsql-jdbc" }
+mysql-connector = { module = "com.mysql:mysql-connector-j", version.ref = "mysql-connector" }
+mariadb-jdbc = { module = "org.mariadb.jdbc:mariadb-java-client", version.ref = "mariadb-jdbc" }
+jedis = { module = "redis.clients:jedis", version.ref = "jedis" }
+commons-lang3 = { module = "org.apache.commons:commons-lang3", version.ref = "commons-lang3" }
+h2 = { module = "com.h2database:h2", version.ref = "h2" }

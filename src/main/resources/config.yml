@@ -1,0 +1,37 @@
+# NoblSQL Configuration
+
+# SQL backend to use when use_internal is false.
+# Accepted values: sqlite, mysql, mariadb, postgresql
+sql_type: sqlite
+
+# When true, NoblSQL boots an embedded H2 TCP server inside the plugin process.
+# The external connection settings below are ignored in this mode.
+use_internal: false
+
+# Settings for the embedded H2 server (use_internal: true only).
+# IMPORTANT: password MUST be set to a non-empty value. An empty password leaves
+# the embedded server unauthenticated and will cause the plugin to refuse to start.
+internal:
+  port: 9092
+  database: noblsql
+  username: noblsql
+  password: ''
+
+# External SQL server connection (use_internal: false only).
+address: localhost
+port: 3306
+database: noblsql
+username: root
+password: ''
+
+# Whether to require SSL for external connections (mysql / mariadb / postgresql).
+require_ssl: false
+
+# Redis configuration (optional key-value cache layer).
+redis:
+  enabled: false
+  host: localhost
+  port: 6379
+  # Leave empty for no authentication.
+  password: ''
+  max_connections: 10
