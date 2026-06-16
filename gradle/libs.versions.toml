@@ -1,6 +1,6 @@
 [versions]
 junit-jupiter = "5.12.1"
-paper-api = "26.1.2.build.63-stable"
+paper-api = "1.21.4-R0.1-SNAPSHOT"
 sqlite-jdbc = "3.47.1.0"
 hikari-cp = "6.2.1"
 reactor = "3.6.10"

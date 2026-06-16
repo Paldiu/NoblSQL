@@ -41,7 +41,7 @@ repositories {
 
 dependencies {
     compileOnly 'io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT'
-    compileOnly 'app.simplexdev:noblsql:0.1.0'
+    compileOnly 'app.simplexdev.noblsql:noblsql:0.1.0'
 }
 ```
 
