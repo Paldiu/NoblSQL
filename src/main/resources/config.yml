@@ -16,6 +16,7 @@ internal:
   database: noblsql
   username: noblsql
   password: ''
+  pool_size: 10
 
 # External SQL server connection (use_internal: false only).
 address: localhost
@@ -23,6 +24,9 @@ port: 3306
 database: noblsql
 username: root
 password: ''
+
+# Connection pool size for external databases. Increase for high-traffic servers.
+pool_size: 10
 
 # Whether to require SSL for external connections (mysql / mariadb / postgresql).
 require_ssl: false

@@ -18,7 +18,9 @@ import app.simplexdev.noblsql.util.NoblLogger;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.io.File;
 import java.time.Duration;
+import java.util.Objects;
 
 public final class NoblSQL extends JavaPlugin {
 
@@ -45,21 +47,21 @@ public final class NoblSQL extends JavaPlugin {
         handlerChain.register(new ValidationHandler());
         handlerChain.register(new LoggingHandler());
 
-        if (getConfig().getBoolean("use_internal", false)) {
-            internalServer = new InternalSQLServer(
-                getConfig().getInt("internal.port", 9092),
-                getDataFolder()
-            );
-            internalServer.start();
-        }
-
-        sharedDialect = SQLSelector.dialectFromConfig(getConfig());
-        sharedContract = new HandlerAwareSQLContract(
-            SQLSelector.contractFromConfig(getConfig(), getDataFolder()),
-            handlerChain
-        );
-
         try {
+            if (getConfig().getBoolean("use_internal", false)) {
+                internalServer = new InternalSQLServer(
+                    getConfig().getInt("internal.port", 9092),
+                    new File(getDataFolder(), "data")
+                );
+                internalServer.start();
+            }
+
+            sharedDialect = SQLSelector.dialectFromConfig(getConfig());
+            sharedContract = new HandlerAwareSQLContract(
+                SQLSelector.contractFromConfig(getConfig(), getDataFolder()),
+                handlerChain
+            );
+
             sharedContract.connect().block(Duration.ofSeconds(30));
             NoblLogger.info("SQL connection established ({}).", sharedDialect);
         } catch (final Exception e) {
@@ -70,9 +72,9 @@ public final class NoblSQL extends JavaPlugin {
 
         if (getConfig().getBoolean("redis.enabled", false)) {
             final Redis redis = new Redis(
-                getConfig().getString("redis.host", "localhost"),
+                Objects.requireNonNullElse(getConfig().getString("redis.host", "localhost"), "localhost"),
                 getConfig().getInt("redis.port", 6379),
-                getConfig().getString("redis.password", ""),
+                Objects.requireNonNullElse(getConfig().getString("redis.password", ""), ""),
                 getConfig().getInt("redis.max_connections", 10)
             );
             try {

@@ -21,6 +21,6 @@ public class PostgreSQL extends AbstractJdbcContract {
             config.addDataSourceProperty("ssl", "true");
             config.addDataSourceProperty("sslmode", "require");
         }
-        config.setMaximumPoolSize(10);
+        config.setMaximumPoolSize(details.poolSize());
     }
 }

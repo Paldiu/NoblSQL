@@ -21,6 +21,6 @@ public class MariaDB extends AbstractJdbcContract {
             config.addDataSourceProperty("useSSL", "true");
             config.addDataSourceProperty("requireSSL", "true");
         }
-        config.setMaximumPoolSize(10);
+        config.setMaximumPoolSize(details.poolSize());
     }
 }

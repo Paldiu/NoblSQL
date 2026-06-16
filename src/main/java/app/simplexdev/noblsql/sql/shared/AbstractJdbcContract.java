@@ -177,13 +177,22 @@ public abstract class AbstractJdbcContract implements SQLContract {
     public Mono<int[]> executeBatch(final String sql, final List<Object[]> paramSets) {
         return gate().guard(
             Mono.fromCallable(() -> {
-                try (Connection conn = dataSource.getConnection();
-                     PreparedStatement stmt = conn.prepareStatement(sql)) {
-                    for (final Object[] params : paramSets) {
-                        bindParams(stmt, params);
-                        stmt.addBatch();
+                try (Connection conn = dataSource.getConnection()) {
+                    conn.setAutoCommit(false);
+                    try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                        for (final Object[] params : paramSets) {
+                            bindParams(stmt, params);
+                            stmt.addBatch();
+                        }
+                        final int[] results = stmt.executeBatch();
+                        conn.commit();
+                        return results;
+                    } catch (final SQLException e) {
+                        conn.rollback();
+                        throw e;
+                    } finally {
+                        conn.setAutoCommit(true);
                     }
-                    return stmt.executeBatch();
                 }
             }).subscribeOn(Schedulers.boundedElastic())
         );

@@ -7,6 +7,8 @@ import reactor.core.publisher.Mono;
 
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public interface SQLContract extends AutoCloseable {
     Mono<Void> connect();
@@ -76,6 +78,6 @@ public interface SQLContract extends AutoCloseable {
 
     @Override
     default void close() {
-        disconnect().subscribe();
+        disconnect().subscribe(null, e -> Logger.getLogger("NoblSQL").log(Level.WARNING, "SQL disconnect error", e));
     }
 }

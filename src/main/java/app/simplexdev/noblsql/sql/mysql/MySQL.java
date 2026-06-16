@@ -21,6 +21,6 @@ public class MySQL extends AbstractJdbcContract {
         config.setDriverClassName("com.mysql.cj.jdbc.Driver");
         config.setUsername(details.username());
         config.setPassword(details.password());
-        config.setMaximumPoolSize(10);
+        config.setMaximumPoolSize(details.poolSize());
     }
 }

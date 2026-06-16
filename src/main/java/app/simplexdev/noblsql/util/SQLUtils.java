@@ -10,7 +10,4 @@ public final class SQLUtils {
         return String.join(", ", Collections.nCopies(count, "?"));
     }
 
-    public static String escapeIdentifier(final String identifier) {
-        return "\"" + identifier.replace("\"", "\"\"") + "\"";
-    }
 }

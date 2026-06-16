@@ -10,6 +10,8 @@ import reactor.core.publisher.Mono;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -23,6 +25,10 @@ import java.util.stream.Collectors;
  * on {@code boundedElastic} and entity mapping runs on the Bukkit main thread.
  */
 public final class QueryBuilder<T> {
+
+    private static final Set<String> ALLOWED_OPERATORS = Set.of(
+        "=", "!=", "<>", ">", "<", ">=", "<=", "LIKE", "NOT LIKE"
+    );
 
     private final EntityMapper<T> mapper;
     private final SQLContract contract;
@@ -43,12 +49,18 @@ public final class QueryBuilder<T> {
      * {@code >=}, {@code <=}, {@code LIKE}, {@code NOT LIKE}.
      */
     public QueryBuilder<T> where(final String column, final String operator, final Object value) {
+        if (!ALLOWED_OPERATORS.contains(operator.toUpperCase(Locale.ROOT))) {
+            throw new IllegalArgumentException("Unsupported operator: " + operator);
+        }
         conditions.add(new Condition(column, operator, value, false));
         return this;
     }
 
     /** Adds an OR condition: {@code OR column operator ?}. */
     public QueryBuilder<T> orWhere(final String column, final String operator, final Object value) {
+        if (!ALLOWED_OPERATORS.contains(operator.toUpperCase(Locale.ROOT))) {
+            throw new IllegalArgumentException("Unsupported operator: " + operator);
+        }
         conditions.add(new Condition(column, operator, value, true));
         return this;
     }

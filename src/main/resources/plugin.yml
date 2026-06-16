@@ -5,3 +5,8 @@ api-version: '1.21'
 description: Reactive multi-driver SQL and Redis integration library for Paper plugins.
 authors:
   - Paldiu
+
+permissions:
+  noblsql.admin:
+    description: Access to NoblSQL management commands.
+    default: op

@@ -84,11 +84,20 @@ public final class HandlerAwareSQLContract implements SQLContract {
         return delegate.poolStats();
     }
 
+    /**
+     * NOTE: SQL executed inside the {@link TransactionWork} callback bypasses the handler
+     * chain entirely. Handlers such as {@code ValidationHandler} and {@code LoggingHandler}
+     * will not be invoked for queries issued through the {@link app.simplexdev.noblsql.api.transaction.TransactionContext}.
+     */
     @Override
     public <T> Mono<T> transaction(final TransactionWork<T> work) {
         return delegate.transaction(work);
     }
 
+    /**
+     * NOTE: The handler chain sees the batch SQL but receives an empty params array.
+     * Individual batch parameter sets are not forwarded to handlers.
+     */
     @Override
     public Mono<int[]> executeBatch(final String sql, final List<Object[]> paramSets) {
         final QueryContext ctx = chain.process(sql, new Object[0], detectType(sql));

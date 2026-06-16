@@ -16,4 +16,9 @@ public interface Migration {
 
     /** Apply this migration. Runs inside a transaction — throw to trigger rollback. */
     void up(TransactionContext ctx) throws Exception;
+
+    /** Reverse this migration. Throws {@link UnsupportedOperationException} by default. */
+    default void down(TransactionContext ctx) throws Exception {
+        throw new UnsupportedOperationException("down() not implemented for migration v" + version());
+    }
 }

@@ -6,5 +6,6 @@ public record ConnectionDetails(
     String database,
     String username,
     String password,
-    boolean requireSsl
+    boolean requireSsl,
+    int poolSize
 ) {}

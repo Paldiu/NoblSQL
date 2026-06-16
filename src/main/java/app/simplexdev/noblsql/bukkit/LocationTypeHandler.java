@@ -5,7 +5,7 @@ import org.bukkit.Location;
 
 /**
  * Stores a {@link Location} as a compact {@code TEXT} string:
- * {@code "worldName:x:y:z:yaw:pitch"}.
+ * {@code "worldName|x|y|z|yaw|pitch"}.
  *
  * <h3>Threading</h3>
  * <p>{@link #toSql} reads the world name from the Location object and is safe
@@ -36,7 +36,8 @@ import org.bukkit.Location;
  * }</pre>
  */
 public final class LocationTypeHandler implements TypeHandler<Location> {
-    private static final String SEP = ":";
+    private static final String SEP = "|";
+    private static final String SEP_REGEX = "\\|";
 
     @Override
     public Object toSql(final Location value) {
@@ -53,7 +54,7 @@ public final class LocationTypeHandler implements TypeHandler<Location> {
     @Override
     public Location fromSql(final Object value) {
         if (value == null) return null;
-        final String[] parts = value.toString().split(SEP, 6);
+        final String[] parts = value.toString().split(SEP_REGEX, 6);
         if (parts.length != 6) {
             throw new IllegalArgumentException("Invalid serialized Location: '" + value + "'");
         }
@@ -71,6 +72,6 @@ public final class LocationTypeHandler implements TypeHandler<Location> {
     /** Extracts the world name from a serialized location string without constructing a Location. */
     public static String worldNameFrom(final Object serialized) {
         if (serialized == null) return null;
-        return serialized.toString().split(SEP, 2)[0];
+        return serialized.toString().split(SEP_REGEX, 2)[0];
     }
 }
