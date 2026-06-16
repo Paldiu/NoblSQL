@@ -4,7 +4,7 @@ A reactive, annotation-driven SQL and Redis ORM library for [Paper](https://pape
 
 NoblSQL is consumed as a server-side plugin dependency. Drop the JAR into your server's `plugins/` folder
 alongside your own plugin, declare the dependency, and call `NoblSQL#createRepository` to get a type-safe,
-non-blocking data accessor. You never write SQL by hand for standard CRUD — the ORM handles it.
+non-blocking data accessor. You never write SQL by hand for standard CRUD - the ORM handles it.
 
 Supports SQLite, MySQL, MariaDB, PostgreSQL, and an embedded H2 server. Optional Redis caching layer included.
 
@@ -98,7 +98,7 @@ public class PlayerData {
     @NotNull
     String joinDate;
 
-    // Required — NoblSQL instantiates entities via reflection
+    // Required - NoblSQL instantiates entities via reflection
     public PlayerData() {}
 }
 ```
@@ -142,7 +142,7 @@ public class MyPlugin extends JavaPlugin {
         // Obtain the NoblSQL plugin instance
         NoblSQL noblSQL = (NoblSQL) getServer().getPluginManager().getPlugin("NoblSQL");
         if (noblSQL == null) {
-            getLogger().severe("NoblSQL not found — disabling.");
+            getLogger().severe("NoblSQL not found = disabling.");
             getServer().getPluginManager().disablePlugin(this);
             return;
         }
@@ -152,7 +152,7 @@ public class MyPlugin extends JavaPlugin {
         playerRepo = noblSQL.createRepository(PlayerData.class);
 
         // Create the table and any declared indexes if they don't exist yet.
-        // This is non-blocking — subscribe to kick it off.
+        // This is non-blocking - subscribe to kick it off.
         playerRepo.createSchema()
             .doOnError(e -> getLogger().severe("Schema creation failed: " + e.getMessage()))
             .subscribe();
@@ -160,7 +160,7 @@ public class MyPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        // NoblSQL manages its own connection shutdown — nothing to clean up here.
+        // NoblSQL manages its own connection shutdown - nothing to clean up here.
     }
 }
 ```
@@ -169,7 +169,7 @@ If you need an isolated connection (e.g. a separate pool from the shared one), p
 `SQLContract` and `Dialect` directly:
 
 ```java
-// Custom isolated connection — your plugin manages its own pool
+// Custom isolated connection - your plugin manages its own pool
 SQLContract myContract = new MySQL(new ConnectionDetails(host, port, db, user, pass, ssl));
 NoblRepository<PlayerData> isolated = noblSQL.createRepository(PlayerData.class, myContract, Dialect.MYSQL);
 ```
@@ -179,7 +179,7 @@ NoblRepository<PlayerData> isolated = noblSQL.createRepository(PlayerData.class,
 ## CRUD
 
 All methods return `Mono<T>` or `Flux<T>`. Call `.subscribe()` for fire-and-forget. If you need
-the result synchronously (e.g. inside a `CompletableFuture` or Folia async task), call `.block()` —
+the result synchronously (e.g. inside a `CompletableFuture` or Folia async task), call `.block()` -
 but never on the Bukkit main thread.
 
 ```java
@@ -198,7 +198,7 @@ playerRepo.saveWithId(playerData).subscribe();
 
 // --- READ ---
 
-// Find by primary key — mapping runs on the Bukkit main thread
+// Find by primary key - mapping runs on the Bukkit main thread
 playerRepo.findById(player.getUniqueId())
     .subscribe(data -> {
         if (data != null) {
@@ -208,7 +208,7 @@ playerRepo.findById(player.getUniqueId())
 
 // Find all rows
 playerRepo.findAll()
-    .subscribe(data -> getLogger().info(data.name + " — " + data.balance));
+    .subscribe(data -> getLogger().info(data.name + " - " + data.balance));
 
 
 // --- UPDATE ---
@@ -254,7 +254,7 @@ playerRepo.query()
     .count()
     .subscribe(n -> getLogger().info("Inactive: " + n));
 
-// IN clause — match a set of UUIDs
+// IN clause - match a set of UUIDs
 playerRepo.query()
     .whereIn("id", uuids.stream().map(UUID::toString).toList())
     .findAll()
@@ -318,7 +318,7 @@ playerRepo.transaction(ctx -> {
         amount, receiverId.toString()
     );
 
-    // Savepoint — rolling back to here undoes the ledger insert but keeps the balance changes
+    // Savepoint - rolling back to here undoes the ledger insert but keeps the balance changes
     ctx.savepoint("after_transfer");
 
     ctx.update(
@@ -427,7 +427,7 @@ Rank rank;
 | `UUIDTypeHandler`          | `VARCHAR(36)`  | Thread-safe                                                     |
 | `LocationTypeHandler`      | `TEXT`         | Stores as `world:x:y:z:yaw:pitch`; world reference resolved later on main thread via `BukkitTypeConverters.resolveLocation()` |
 | `ItemStackTypeHandler`     | `BLOB`         | Uses Paper's `serializeAsBytes` / `deserializeBytes`            |
-| `OfflinePlayerTypeHandler` | `VARCHAR(36)`  | `fromSql` calls Bukkit API — must run on main thread (it does by default via two-phase pipeline) |
+| `OfflinePlayerTypeHandler` | `VARCHAR(36)`  | `fromSql` calls Bukkit API - must run on main thread (it does by default via two-phase pipeline) |
 
 ---
 
@@ -452,14 +452,14 @@ public class AuditHandler implements QueryHandler {
     public void handle(QueryContext ctx) {
         logger.info("[Audit] " + ctx.queryType() + " -> " + ctx.sql());
 
-        // Optionally cancel — query will not reach the database
+        // Optionally cancel - query will not reach the database
         // ctx.cancel();
     }
 }
 ```
 
 ```java
-// Register in onEnable — handlers added here apply to all repos sharing the contract
+// Register in onEnable - handlers added here apply to all repos sharing the contract
 noblSQL.registerHandler(new AuditHandler(getLogger()));
 
 // Unregister when your plugin disables (good practice, NoblSQL cleans up on server stop anyway)
@@ -489,7 +489,7 @@ redis.set("session:" + uuid, token)
 redis.get("session:" + uuid)
     .subscribe(token -> {
         if (token != null) {
-            // cache hit — skip database lookup
+            // cache hit - skip database lookup
         }
     });
 
