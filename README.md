@@ -554,6 +554,6 @@ Requires the `noblsql.admin` permission.
 
 ## License
 
-Copyright (c) 2026 Paldiu. Distributed under the NoblSQL Source-Available License — see
+Copyright (c) 2026 Paldiu. Distributed under the NoblSQL Source-Available License - see
 [LICENSE.md](LICENSE.md). You may view, study, and use the compiled plugin and contribute patches
 back. Redistribution, sale, and incorporation into proprietary software require written permission.
