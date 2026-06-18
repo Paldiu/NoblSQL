@@ -5,15 +5,56 @@ import app.simplexdev.noblsql.api.data.type.*;
 import app.simplexdev.noblsql.api.sql.SQLContract;
 import reactor.core.publisher.Flux;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 public class SchemaGenerator {
+
+    @FunctionalInterface
+    private interface SqlTypeResolver {
+        String resolve(Field field, boolean isId, boolean autoInc);
+    }
+
     private final Dialect dialect;
+    private final Map<Class<? extends Annotation>, SqlTypeResolver> typeResolvers;
 
     public SchemaGenerator(final Dialect dialect) {
         this.dialect = dialect;
+        this.typeResolvers = buildTypeResolvers(dialect);
+    }
+
+    private static Map<Class<? extends Annotation>, SqlTypeResolver> buildTypeResolvers(final Dialect dialect) {
+        final Map<Class<? extends Annotation>, SqlTypeResolver> map = new LinkedHashMap<>();
+        map.put(Varchar.class, (f, id, ai) -> {
+            final int len = f.getAnnotation(Varchar.class).length();
+            if (len <= 0) throw new IllegalArgumentException(
+                "@Varchar on " + f.getDeclaringClass().getSimpleName() + "." + f.getName()
+                + " must have length > 0 (got " + len + ")");
+            return "VARCHAR(" + len + ")";
+        });
+        map.put(Text.class,      (f, id, ai) -> "TEXT");
+        map.put(Int.class,       (f, id, ai) -> (id && ai && dialect == Dialect.POSTGRESQL) ? "SERIAL"    : "INT");
+        map.put(BigInt.class,    (f, id, ai) -> (id && ai && dialect == Dialect.POSTGRESQL) ? "BIGSERIAL" : "BIGINT");
+        map.put(Bool.class,      (f, id, ai) -> dialect.boolType());
+        map.put(Timestamp.class, (f, id, ai) -> "TIMESTAMP");
+        map.put(Decimal.class, (f, id, ai) -> {
+            final Decimal d = f.getAnnotation(Decimal.class);
+            if (d.precision() <= 0) throw new IllegalArgumentException(
+                "@Decimal on " + f.getDeclaringClass().getSimpleName() + "." + f.getName()
+                + " must have precision > 0 (got " + d.precision() + ")");
+            if (d.scale() < 0) throw new IllegalArgumentException(
+                "@Decimal on " + f.getDeclaringClass().getSimpleName() + "." + f.getName()
+                + " must have scale >= 0 (got " + d.scale() + ")");
+            return "DECIMAL(" + d.precision() + ", " + d.scale() + ")";
+        });
+        map.put(Blob.class, (f, id, ai) -> dialect.blobType());
+        map.put(Json.class, (f, id, ai) -> dialect.jsonType());
+        return Collections.unmodifiableMap(map);
     }
 
     /**
@@ -94,39 +135,16 @@ public class SchemaGenerator {
     }
 
     private String sqlType(final Field field, final boolean isId, final boolean autoInc) {
-        if (field.isAnnotationPresent(Varchar.class)) {
-            final int length = field.getAnnotation(Varchar.class).length();
-            if (length <= 0) throw new IllegalArgumentException(
-                "@Varchar on " + field.getDeclaringClass().getSimpleName() + "." + field.getName()
-                + " must have length > 0 (got " + length + ")");
-            return "VARCHAR(" + length + ")";
+        String resolved = null;
+        for (final Map.Entry<Class<? extends Annotation>, SqlTypeResolver> entry : typeResolvers.entrySet()) {
+            if (field.isAnnotationPresent(entry.getKey())) {
+                resolved = entry.getValue().resolve(field, isId, autoInc);
+                break;
+            }
         }
-        if (field.isAnnotationPresent(Text.class)) return "TEXT";
-
+        
         if (isId && dialect == Dialect.SQLITE) return "INTEGER";
-
-        if (field.isAnnotationPresent(Int.class)) {
-            return (isId && autoInc && dialect == Dialect.POSTGRESQL) ? "SERIAL" : "INT";
-        }
-        if (field.isAnnotationPresent(BigInt.class)) {
-            return (isId && autoInc && dialect == Dialect.POSTGRESQL) ? "BIGSERIAL" : "BIGINT";
-        }
-        if (field.isAnnotationPresent(Bool.class)) return dialect.boolType();
-        if (field.isAnnotationPresent(Timestamp.class)) return "TIMESTAMP";
-        if (field.isAnnotationPresent(Decimal.class)) {
-            final Decimal d = field.getAnnotation(Decimal.class);
-            if (d.precision() <= 0) throw new IllegalArgumentException(
-                "@Decimal on " + field.getDeclaringClass().getSimpleName() + "." + field.getName()
-                + " must have precision > 0 (got " + d.precision() + ")");
-            if (d.scale() < 0) throw new IllegalArgumentException(
-                "@Decimal on " + field.getDeclaringClass().getSimpleName() + "." + field.getName()
-                + " must have scale >= 0 (got " + d.scale() + ")");
-            return "DECIMAL(" + d.precision() + ", " + d.scale() + ")";
-        }
-        if (field.isAnnotationPresent(Blob.class)) return dialect.blobType();
-        if (field.isAnnotationPresent(Json.class)) return dialect.jsonType();
-
-        return inferFromJavaType(field.getType());
+        return resolved != null ? resolved : inferFromJavaType(field.getType());
     }
 
     private String inferFromJavaType(final Class<?> type) {

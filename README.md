@@ -109,7 +109,7 @@ public class PlayerData {
 |---------------------|-------------------------------------------------------------|
 | `@Varchar(n)`       | `VARCHAR(n)` (default 255)                                  |
 | `@Text`             | `TEXT`                                                      |
-| `@Int`              | `INTEGER`                                                   |
+| `@Int`              | `INT` (`SERIAL` for an auto-increment PostgreSQL key)      |
 | `@BigInt`           | `BIGINT`                                                    |
 | `@Decimal(p, s)`    | `DECIMAL(p, s)`                                             |
 | `@Bool`             | `BOOLEAN` / `TINYINT(1)` (dialect-dependent)                |
@@ -169,8 +169,9 @@ If you need an isolated connection (e.g. a separate pool from the shared one), p
 `SQLContract` and `Dialect` directly:
 
 ```java
-// Custom isolated connection - your plugin manages its own pool
-SQLContract myContract = new MySQL(new ConnectionDetails(host, port, db, user, pass, ssl));
+// Custom isolated connection - your plugin manages its own pool.
+// ConnectionDetails(host, port, database, username, password, requireSsl, poolSize)
+SQLContract myContract = new MySQL(new ConnectionDetails(host, port, db, user, pass, false, 10));
 NoblRepository<PlayerData> isolated = noblSQL.createRepository(PlayerData.class, myContract, Dialect.MYSQL);
 ```
 
@@ -209,6 +210,11 @@ playerRepo.findById(player.getUniqueId())
 // Find all rows
 playerRepo.findAll()
     .subscribe(data -> getLogger().info(data.name + " - " + data.balance));
+
+// Stream a large table with a JDBC server-side cursor (memory is O(fetchSize), not O(rows)).
+// Use this instead of findAll() when the table is too big to hold in heap at once.
+playerRepo.findAllStream(200)
+    .subscribe(data -> archive(data));
 
 
 // --- UPDATE ---
@@ -253,6 +259,20 @@ playerRepo.query()
     .where("join_date", "<", "2024-01-01 00:00:00")
     .count()
     .subscribe(n -> getLogger().info("Inactive: " + n));
+
+// Paginate: returns a Page<T> with the items, total count, and page metadata.
+// The COUNT(*) and the windowed SELECT run in parallel. (limit/offset are ignored here -
+// page and size control the window.)
+playerRepo.query()
+    .where("balance", ">", 0.0)
+    .orderBy("balance", Order.DESC)
+    .paginate(0, 20)  // page index 0, 20 rows per page
+    .subscribe(page -> {
+        getLogger().info("Page " + page.page() + "/" + page.totalPages()
+            + " (" + page.totalCount() + " total)");
+        page.items().forEach(p -> getLogger().info(p.name + ": " + p.balance));
+        if (page.hasNext()) { /* load page 1 next */ }
+    });
 
 // IN clause - match a set of UUIDs
 playerRepo.query()
@@ -364,6 +384,18 @@ public class V1_AddRankColumn implements Migration {
     public void up(TransactionContext ctx) throws Exception {
         ctx.update("ALTER TABLE players ADD COLUMN rank VARCHAR(32) DEFAULT 'member'");
     }
+
+    // Optional: implement down() to make this migration reversible via runner.rollback(...).
+    // Without it, rollback of this version throws.
+    @Override
+    public void down(TransactionContext ctx) throws Exception {
+        ctx.update("ALTER TABLE players DROP COLUMN rank");
+    }
+
+    // Optional: return a stable fingerprint (e.g. SHA-256 of the SQL body). If a previously
+    // applied migration's checksum no longer matches what's stored, the runner logs a warning.
+    @Override
+    public String checksum() { return "sha256:..."; }
 }
 
 public class V2_AddDiscordId implements Migration {
@@ -385,9 +417,21 @@ Register all migrations at startup. Pending ones are applied in ascending versio
 
 ```java
 MigrationRunner runner = noblSQL.createMigrationRunner();
-runner.run(List.of(new V1_AddRankColumn(), new V2_AddDiscordId()))
+List<Migration> migrations = List.of(new V1_AddRankColumn(), new V2_AddDiscordId());
+
+runner.run(migrations)
     .doOnError(e -> getLogger().severe("Migration failed: " + e.getMessage()))
     .subscribe();
+```
+
+To reverse migrations, call `rollback(toVersion, migrations)`. It reverses applied versions in
+descending order down to (and including) `toVersion`, each in its own transaction, calling each
+migration's `down(ctx)`. A version whose `down()` is not implemented aborts the rollback at that
+point.
+
+```java
+// Roll back everything down to version 2 (i.e. undo v2 and higher; pass 1 to undo all)
+runner.rollback(2, migrations).subscribe();
 ```
 
 ---
@@ -450,8 +494,9 @@ public class AuditHandler implements QueryHandler {
 
     @Override
     public void handle(QueryContext ctx) {
-        logger.info("[Audit] " + ctx.queryType() + " -> " + ctx.sql());
+        logger.info("[Audit] " + ctx.getType() + " -> " + ctx.getSql());
 
+        // Inspect/rewrite params with ctx.getParams() / ctx.setParams(...)
         // Optionally cancel - query will not reach the database
         // ctx.cancel();
     }
@@ -468,6 +513,11 @@ noblSQL.unregisterHandler(auditHandler);
 
 Higher priority values run first. Built-in handlers: `ValidationHandler` at `Integer.MAX_VALUE`,
 `LoggingHandler` at `Integer.MAX_VALUE - 1`.
+
+> **Scope:** the chain sees regular `query`/`update`/`queryRaw` calls on the shared contract. SQL run
+> inside a `transaction(...)` callback bypasses the chain entirely, and `executeBatch` is seen with an
+> empty params array (the per-row parameter sets are not forwarded). Don't rely on handlers for
+> validation or auditing of transactional or batch work.
 
 ---
 

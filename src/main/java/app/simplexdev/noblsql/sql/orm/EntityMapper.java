@@ -9,6 +9,7 @@ import app.simplexdev.noblsql.api.data.TypeHandler;
 import app.simplexdev.noblsql.api.sql.ResultSetMapper;
 import app.simplexdev.noblsql.util.SQLUtils;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -25,6 +26,7 @@ public class EntityMapper<T> {
     private final List<Field> columnFields;
     private final Map<Field, TypeHandler<?>> handlers;
     private final Dialect dialect;
+    private final Constructor<T> constructor;
 
     public EntityMapper(final Class<T> entityClass, final Dialect dialect) {
         this.entityClass = entityClass;
@@ -57,6 +59,13 @@ public class EntityMapper<T> {
         this.idFields = List.copyOf(ids);
         this.columnFields = List.copyOf(cols);
         this.handlers = Map.copyOf(hdls);
+
+        try {
+            this.constructor = entityClass.getDeclaredConstructor();
+            this.constructor.setAccessible(true);
+        } catch (final NoSuchMethodException e) {
+            throw new IllegalArgumentException(entityClass.getName() + " must have a no-arg constructor", e);
+        }
     }
 
     public String tableName() {
@@ -192,9 +201,7 @@ public class EntityMapper<T> {
     public ResultSetMapper<T> mapper() {
         return rs -> {
             try {
-                final java.lang.reflect.Constructor<T> ctor = entityClass.getDeclaredConstructor();
-                ctor.setAccessible(true);
-                final T instance = ctor.newInstance();
+                final T instance = constructor.newInstance();
                 for (final Field f : columnFields) {
                     final Object raw = rs.getObject(columnName(f));
                     f.set(instance, fromSql(f, raw));
@@ -213,9 +220,7 @@ public class EntityMapper<T> {
      */
     public T fromRawRow(final Map<String, Object> row) {
         try {
-            final java.lang.reflect.Constructor<T> ctor = entityClass.getDeclaredConstructor();
-            ctor.setAccessible(true);
-            final T instance = ctor.newInstance();
+            final T instance = constructor.newInstance();
             for (final Field f : columnFields) {
                 final Object raw = row.get(columnName(f).toLowerCase(Locale.ROOT));
                 f.set(instance, fromSql(f, raw));

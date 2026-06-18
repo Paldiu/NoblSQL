@@ -51,6 +51,15 @@ public final class LocationTypeHandler implements TypeHandler<Location> {
             + value.getPitch();
     }
 
+    /**
+     * Deserializes a {@link Location} from the compact string format.
+     * <p>World is intentionally left {@code null} — resolve via BukkitTypeConverters
+     * on the main thread.
+     * 
+     * @param value the serialized location string
+     * @return a Location with the world reference set to {@code null}
+     * @throws IllegalArgumentException if the string is malformed
+     */
     @Override
     public Location fromSql(final Object value) {
         if (value == null) return null;
@@ -58,7 +67,7 @@ public final class LocationTypeHandler implements TypeHandler<Location> {
         if (parts.length != 6) {
             throw new IllegalArgumentException("Invalid serialized Location: '" + value + "'");
         }
-        // World is intentionally null — resolve via BukkitTypeConverters on the main thread.
+        
         return new Location(
             null,
             Double.parseDouble(parts[1]),

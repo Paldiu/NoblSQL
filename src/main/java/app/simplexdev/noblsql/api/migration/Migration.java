@@ -21,4 +21,15 @@ public interface Migration {
     default void down(TransactionContext ctx) throws Exception {
         throw new UnsupportedOperationException("down() not implemented for migration v" + version());
     }
+
+    /**
+     * An optional content fingerprint for this migration (e.g. a SHA-256 of the SQL body).
+     * When non-null, {@link app.simplexdev.noblsql.sql.orm.MigrationRunner} will warn if the
+     * stored checksum differs from the current value, indicating that a previously-applied
+     * migration's body has been silently edited.
+     * Returns {@code null} by default (no check performed).
+     */
+    default String checksum() {
+        return null;
+    }
 }

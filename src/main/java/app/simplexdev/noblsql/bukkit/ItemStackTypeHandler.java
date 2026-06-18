@@ -10,7 +10,14 @@ import org.bukkit.inventory.ItemStack;
  *
  * <p>This handler operates on item data only and does not call any
  * server-state Bukkit API, making it safe to use from any thread.
- * Map the field to {@code @Blob} in your entity:
+ *
+ * <p><strong>Trust boundary:</strong> {@code fromSql} passes raw bytes from the database
+ * directly to {@code ItemStack.deserializeBytes}. If untrusted parties can write to the
+ * backing table (e.g. a shared database with weak access controls), malformed NBT bytes
+ * could exercise Paper's deserialization code. Paper validates its input, so practical risk
+ * is low, but this handler should only be used where the database is trusted.
+ *
+ * <p>Map the field to {@code @Blob} in your entity:
  *
  * <pre>{@code
  * @Column("item_data")

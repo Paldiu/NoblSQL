@@ -7,10 +7,11 @@ import reactor.core.publisher.Mono;
 
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public interface SQLContract extends AutoCloseable {
+    Logger LOGGER = LoggerFactory.getLogger(SQLContract.class);
     Mono<Void> connect();
     Mono<Void> disconnect();
     boolean isConnected();
@@ -54,6 +55,20 @@ public interface SQLContract extends AutoCloseable {
     Flux<Map<String, Object>> queryManyRaw(String sql, Object... params);
 
     /**
+     * Executes a SELECT and streams rows one at a time using a JDBC server-side cursor.
+     * Unlike {@link #queryManyRaw}, this never materializes the entire result set in
+     * memory — heap usage is proportional to {@code fetchSize}, not the number of rows.
+     * Use for unbounded queries on large tables where {@link #queryManyRaw} would risk OOM.
+     *
+     * <p>The underlying {@link java.sql.Connection} and {@link java.sql.ResultSet} remain
+     * open until the Flux completes, errors, or is cancelled.
+     *
+     * @param fetchSize JDBC fetch-size hint (typical: 50–500). MySQL requires
+     *                  {@code Integer.MIN_VALUE} to enable true server-side streaming.
+     */
+    Flux<Map<String, Object>> queryStream(String sql, int fetchSize, Object... params);
+
+    /**
      * Runs {@code work} inside a single JDBC transaction on a dedicated I/O thread.
      * The transaction is committed when {@code work} returns normally and rolled back
      * if it throws. Use {@link TransactionContext} for all database operations inside
@@ -78,6 +93,6 @@ public interface SQLContract extends AutoCloseable {
 
     @Override
     default void close() {
-        disconnect().subscribe(null, e -> Logger.getLogger("NoblSQL").log(Level.WARNING, "SQL disconnect error", e));
+        disconnect().subscribe(null, e -> LOGGER.warn("SQL disconnect error", e));
     }
 }

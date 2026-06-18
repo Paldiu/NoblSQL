@@ -1,11 +1,11 @@
 package app.simplexdev.noblsql.api.sql;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
 public interface RedisContract extends AutoCloseable {
+    Logger LOGGER = LoggerFactory.getLogger(RedisContract.class);
     Mono<Void> connect();
     Mono<Void> disconnect();
     boolean isConnected();
@@ -19,6 +19,6 @@ public interface RedisContract extends AutoCloseable {
 
     @Override
     default void close() {
-        disconnect().subscribe(null, e -> Logger.getLogger("NoblSQL").log(Level.WARNING, "Redis disconnect error", e));
+        disconnect().subscribe(null, e -> LOGGER.warn("Redis disconnect error", e));
     }
 }

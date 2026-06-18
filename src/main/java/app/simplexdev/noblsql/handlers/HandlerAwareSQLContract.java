@@ -80,6 +80,13 @@ public final class HandlerAwareSQLContract implements SQLContract {
     }
 
     @Override
+    public Flux<Map<String, Object>> queryStream(final String sql, final int fetchSize, final Object... params) {
+        final QueryContext ctx = chain.process(sql, params, QueryType.SELECT);
+        if (ctx.isCancelled()) return Flux.empty();
+        return delegate.queryStream(ctx.getSql(), fetchSize, ctx.getParams());
+    }
+
+    @Override
     public PoolStats poolStats() {
         return delegate.poolStats();
     }

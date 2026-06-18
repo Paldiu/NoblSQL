@@ -66,6 +66,20 @@ public class NoblRepository<T> {
     }
 
     /**
+     * Streams every row in the entity's table using a JDBC server-side cursor.
+     * Memory usage is O({@code fetchSize}), not O(table size) — safe for large tables
+     * where {@link #findAll} would risk OOM. See {@link #findById} for threading semantics.
+     *
+     * @param fetchSize JDBC fetch-size hint (typical: 50–500). MySQL requires
+     *                  {@code Integer.MIN_VALUE} for true server-side streaming.
+     */
+    public Flux<T> findAllStream(final int fetchSize) {
+        return contract.queryStream(mapper.selectAll(), fetchSize)
+            .publishOn(BukkitSchedulers.mainThread())
+            .map(mapper::fromRawRow);
+    }
+
+    /**
      * Returns a fluent {@link QueryBuilder} for constructing parameterized
      * SELECT / DELETE queries with WHERE / ORDER BY / LIMIT / OFFSET clauses.
      *
@@ -165,31 +179,58 @@ public class NoblRepository<T> {
         return contract.transaction(work);
     }
 
-    /** Runs a custom SELECT and maps the first row to T via the two-phase pipeline. */
+    /**
+     * Runs a custom SELECT and maps the first matching row to {@code T} via the two-phase pipeline.
+     *
+     * <p><strong>SQL injection warning:</strong> {@code sql} is sent to the database verbatim.
+     * This is the only surface in {@code NoblRepository} where injection is possible.
+     * Always use {@code ?} placeholders for every value; never concatenate user-supplied strings
+     * into {@code sql}.
+     */
     public Mono<T> query(final String sql, final Object... params) {
         return contract.queryRaw(sql, params)
             .publishOn(BukkitSchedulers.mainThread())
             .mapNotNull(mapper::fromRawRow);
     }
 
-    /** Runs a custom SELECT and maps every row to T via the two-phase pipeline. */
+    /**
+     * Runs a custom SELECT and maps every row to {@code T} via the two-phase pipeline.
+     *
+     * <p><strong>SQL injection warning:</strong> {@code sql} is sent to the database verbatim.
+     * Always use {@code ?} placeholders; never concatenate user-supplied strings into {@code sql}.
+     */
     public Flux<T> queryMany(final String sql, final Object... params) {
         return contract.queryManyRaw(sql, params)
             .publishOn(BukkitSchedulers.mainThread())
             .map(mapper::fromRawRow);
     }
 
-    /** Runs an arbitrary SELECT with a custom row mapper (runs on the I/O thread). */
+    /**
+     * Runs a custom SELECT with a caller-supplied row mapper (executes on the I/O thread).
+     *
+     * <p><strong>SQL injection warning:</strong> {@code sql} is sent to the database verbatim.
+     * Always use {@code ?} placeholders; never concatenate user-supplied strings into {@code sql}.
+     */
     public <R> Mono<R> rawQuery(final String sql, final ResultSetMapper<R> resultMapper, final Object... params) {
         return contract.query(sql, resultMapper, params);
     }
 
-    /** Runs an arbitrary SELECT with a custom row mapper for every row. */
+    /**
+     * Runs a custom SELECT with a caller-supplied row mapper for every row.
+     *
+     * <p><strong>SQL injection warning:</strong> {@code sql} is sent to the database verbatim.
+     * Always use {@code ?} placeholders; never concatenate user-supplied strings into {@code sql}.
+     */
     public <R> Flux<R> rawQueryMany(final String sql, final ResultSetMapper<R> rowMapper, final Object... params) {
         return contract.queryMany(sql, rowMapper, params);
     }
 
-    /** Executes an arbitrary DML or DDL statement. */
+    /**
+     * Executes an arbitrary DML or DDL statement.
+     *
+     * <p><strong>SQL injection warning:</strong> {@code sql} is sent to the database verbatim.
+     * Always use {@code ?} placeholders; never concatenate user-supplied strings into {@code sql}.
+     */
     public Mono<Integer> rawUpdate(final String sql, final Object... params) {
         return contract.update(sql, params);
     }

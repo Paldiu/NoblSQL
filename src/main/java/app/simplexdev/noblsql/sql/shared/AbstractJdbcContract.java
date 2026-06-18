@@ -143,12 +143,73 @@ public abstract class AbstractJdbcContract implements SQLContract {
                      PreparedStatement stmt = conn.prepareStatement(sql)) {
                     bindParams(stmt, params);
                     try (ResultSet rs = stmt.executeQuery()) {
-                        while (rs.next()) rows.add(snapRow(rs));
+                        final ResultSetMetaData meta = rs.getMetaData();
+                        while (rs.next()) rows.add(snapRow(rs, meta));
                     }
                 }
                 return rows;
             }).subscribeOn(Schedulers.boundedElastic()))
             .flatMapIterable(rows -> rows);
+    }
+
+    @Override
+    public Flux<Map<String, Object>> queryStream(final String sql, final int fetchSize, final Object... params) {
+        return gate().guard(
+            Flux.<Map<String, Object>, StreamState>generate(
+                () -> openStream(sql, fetchSize, params),
+                (state, sink) -> {
+                    try {
+                        if (state.rs.next()) {
+                            sink.next(snapRow(state.rs, state.meta));
+                        } else {
+                            sink.complete();
+                        }
+                    } catch (final SQLException e) {
+                        sink.error(e);
+                    }
+                    return state;
+                },
+                StreamState::close
+            ).subscribeOn(Schedulers.boundedElastic())
+        );
+    }
+
+    private StreamState openStream(final String sql, final int fetchSize, final Object[] params) throws SQLException {
+        final Connection conn = dataSource.getConnection();
+        try {
+            conn.setAutoCommit(false);
+            final PreparedStatement stmt = conn.prepareStatement(
+                sql, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+            stmt.setFetchSize(fetchSize);
+            bindParams(stmt, params);
+            final ResultSet rs = stmt.executeQuery();
+            return new StreamState(conn, stmt, rs, rs.getMetaData());
+        } catch (final SQLException e) {
+            conn.close();
+            throw e;
+        }
+    }
+
+    private static final class StreamState {
+        final Connection conn;
+        final PreparedStatement stmt;
+        final ResultSet rs;
+        final ResultSetMetaData meta;
+
+        StreamState(final Connection conn, final PreparedStatement stmt,
+                    final ResultSet rs, final ResultSetMetaData meta) {
+            this.conn = conn;
+            this.stmt = stmt;
+            this.rs = rs;
+            this.meta = meta;
+        }
+
+        void close() {
+            try { rs.close();   } catch (final Exception ignored) {}
+            try { stmt.close(); } catch (final Exception ignored) {}
+            try { conn.rollback(); } catch (final Exception ignored) {}
+            try { conn.close(); } catch (final Exception ignored) {}
+        }
     }
 
     @Override
@@ -225,7 +286,10 @@ public abstract class AbstractJdbcContract implements SQLContract {
     }
 
     private static Map<String, Object> snapRow(final ResultSet rs) throws SQLException {
-        final ResultSetMetaData meta = rs.getMetaData();
+        return snapRow(rs, rs.getMetaData());
+    }
+
+    private static Map<String, Object> snapRow(final ResultSet rs, final ResultSetMetaData meta) throws SQLException {
         final Map<String, Object> row = new LinkedHashMap<>();
         for (int i = 1; i <= meta.getColumnCount(); i++) {
             row.put(meta.getColumnLabel(i).toLowerCase(Locale.ROOT), rs.getObject(i));

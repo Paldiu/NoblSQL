@@ -5,6 +5,7 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Fair, non-blocking access gate that prevents more queries from reaching the
@@ -12,8 +13,8 @@ import java.util.concurrent.Semaphore;
  *
  * Fairness is provided by {@link Semaphore}'s FIFO waiting queue: the query
  * that has been waiting longest always receives the next available permit.
- * Permit release is guaranteed on completion, error, and cancellation via
- * {@code usingWhen}, so the gate never leaks permits.
+ * Permit release is guaranteed on completion, error, and cancellation — including
+ * the case where a subscriber cancels while {@code acquire()} is still blocked.
  */
 public final class AccessController {
     private final Semaphore semaphore;
@@ -72,9 +73,25 @@ public final class AccessController {
     }
 
     private Mono<Boolean> acquire() {
-        return Mono.fromCallable(() -> {
-            semaphore.acquire();
-            return true;
+        return Mono.<Boolean>create(sink -> {
+            final Thread thread = Thread.currentThread();
+            final AtomicBoolean cancelled = new AtomicBoolean(false);
+            sink.onCancel(() -> {
+                cancelled.set(true);
+                thread.interrupt();
+            });
+            try {
+                semaphore.acquire();
+                if (cancelled.get()) {
+                    semaphore.release();
+                } else {
+                    sink.success(Boolean.TRUE);
+                }
+            } catch (final InterruptedException e) {
+                sink.error(e);
+            } finally {
+                Thread.interrupted();
+            }
         }).subscribeOn(Schedulers.boundedElastic());
     }
 
